@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f4f6f3">
+    <title>Signal Check — Fact-check lookup</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <main class="page-shell">
+        <header class="topbar">
+            <a class="brand" href="{{ url_for('home') }}" aria-label="Signal Check home">
+                <span class="brand-mark" aria-hidden="true">S</span>
+                <span>Signal<span class="brand-light">Check</span></span>
+            </a>
+            <span class="topbar-note">Related checks, not an automatic verdict</span>
+        </header>
+
+        <section class="hero" aria-labelledby="page-title">
+            <p class="eyebrow"><span class="eyebrow-dot"></span> PUBLISHED FACT-CHECKS</p>
+            <h1 id="page-title">Look for a fact-check before you share.</h1>
+            <p class="hero-copy">
+                Search recent fact-check articles for a related claim. A missing
+                match does not mean a claim is true or false.
+            </p>
+        </section>
+
+        <section class="analyzer-card" aria-label="News analysis form">
+            <form method="post" action="{{ url_for('predict') }}" id="analysis-form">
+                <div class="field-heading">
+                    <label for="news_article">Claim, headline, or article</label>
+                    <span class="field-hint">We compare your text with feed entries locally</span>
+                </div>
+                <textarea
+                    id="news_article"
+                    name="news_article"
+                    rows="9"
+                    maxlength="{{ max_article_length }}"
+                    placeholder="Paste a headline or article here…"
+                    aria-describedby="input-help character-count"
+                    required
+                >{{ article }}</textarea>
+                <div class="input-footer">
+                    <span id="input-help">Your text is not sent to the fact-check sources.</span>
+                    <span id="character-count" aria-live="polite">
+                        0 / {{ "{:,}".format(max_article_length) }}
+                    </span>
+                </div>
+                <button type="submit" id="submit-button">
+                    <span>Find related fact-checks</span>
+                    <span aria-hidden="true">→</span>
+                </button>
+                <p class="loading-message" id="loading-message" role="status" hidden>
+                    Checking fact-check feeds…
+                </p>
+            </form>
+
+            {% if error %}
+            <div class="notice notice-error" role="alert">
+                <span class="notice-icon" aria-hidden="true">!</span>
+                <div>
+                    <strong>Couldn’t search these sources</strong>
+                    <p>{{ error }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if search_result %}
+            <section class="result" aria-live="polite" aria-labelledby="result-title">
+                <h2 id="result-title">Related fact-checks</h2>
+                {% if search_result.matches %}
+                <ul class="fact-check-list">
+                    {% for check in search_result.matches %}
+                    <li class="fact-check-item">
+                        <h3>
+                            <a href="{{ check.url }}" target="_blank" rel="noopener noreferrer">
+                                {{ check.title }}
+                            </a>
+                        </h3>
+                        <p class="fact-check-meta">
+                            {{ check.source }}{% if check.published %} · {{ check.published }}{% endif %}
+                        </p>
+                        {% if check.summary %}
+                        <p class="fact-check-summary">{{ check.summary }}</p>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% elif search_result.checked_sources %}
+                <p class="result-message">No related fact-check found in the available feeds.</p>
+                {% else %}
+                <p class="result-message" role="status">We could not reach any fact-check feeds. Try again later.</p>
+                {% endif %}
+                {% if search_result.failed_sources and search_result.checked_sources %}
+                <p class="source-warning" role="status">
+                    Some sources could not be reached:
+                    {{ search_result.failed_sources|join(", ") }}. Results may be incomplete.
+                </p>
+                {% endif %}
+                <p class="result-caveat">
+                    A related article is evidence to review, not a verdict. No match
+                    does not establish whether the claim is true or false.
+                </p>
+            </section>
+            {% endif %}
+        </section>
+
+        <section class="dataset-card" aria-label="Fact-check source status">
+            <div class="dataset-icon" aria-hidden="true">◎</div>
+            <div>
+                <h2>Configured fact-check feeds</h2>
+                <p>{{ source_names|join(", ") }}. Feeds are checked when you submit text.</p>
+            </div>
+        </section>
+
+        <footer class="page-footer">
+            <span>Only configured feeds are searched.</span>
+            <span>A missing match is not proof that a claim is accurate.</span>
+        </footer>
+    </main>
+
+    <script>
+        const articleInput = document.getElementById("news_article");
+        const characterCount = document.getElementById("character-count");
+        const form = document.getElementById("analysis-form");
+        const submitButton = document.getElementById("submit-button");
+        const loadingMessage = document.getElementById("loading-message");
+        const maxArticleLength = {{ max_article_length }};
+
+        function updateCharacterCount() {
+            characterCount.textContent =
+                `${articleInput.value.length.toLocaleString()} / ${maxArticleLength.toLocaleString()}`;
+        }
+
+        articleInput.addEventListener("input", updateCharacterCount);
+        updateCharacterCount();
+
+        form.addEventListener("submit", () => {
+            submitButton.disabled = true;
+            submitButton.querySelector("span").textContent = "Searching…";
+            loadingMessage.hidden = false;
+        });
+    </script>
+</body>
+</html>
