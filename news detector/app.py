@@ -2,7 +2,12 @@ import os
 
 from flask import Flask, render_template, request
 
-from fact_check_service import SOURCE_NAMES, find_related_fact_checks
+from fact_check_service import (
+    NEWS_SOURCE_NAMES,
+    SOURCE_NAMES,
+    find_related_fact_checks,
+    find_related_news,
+)
 
 
 app = Flask(__name__)
@@ -14,7 +19,9 @@ def _render_page(**context):
         "article": "",
         "error": None,
         "search_result": None,
+        "news_result": None,
         "source_names": SOURCE_NAMES,
+        "news_source_names": NEWS_SOURCE_NAMES,
         "max_article_length": MAX_ARTICLE_LENGTH,
     }
     page_context.update(context)
@@ -31,7 +38,7 @@ def predict():
     article = request.form.get("news_article", "").strip()
     if not article:
         return _render_page(
-            error="Paste a claim, headline, or article to search for fact-checks."
+            error="Paste a claim, headline, or article to search for related news and fact-checks."
         )
     if len(article) > MAX_ARTICLE_LENGTH:
         return _render_page(
@@ -42,6 +49,7 @@ def predict():
     return _render_page(
         article=article,
         search_result=find_related_fact_checks(article),
+        news_result=find_related_news(article),
     )
 
 

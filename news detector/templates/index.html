@@ -3,8 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f4f6f3">
-    <title>Signal Check — Fact-check lookup</title>
+    <meta name="theme-color" content="#e9efec">
+    <title>Signal Check — Related news and fact-checks</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
@@ -14,109 +14,189 @@
                 <span class="brand-mark" aria-hidden="true">S</span>
                 <span>Signal<span class="brand-light">Check</span></span>
             </a>
-            <span class="topbar-note">Related checks, not an automatic verdict</span>
+            <span class="topbar-note"><span class="status-dot"></span> Recent sources, reviewed locally</span>
         </header>
 
-        <section class="hero" aria-labelledby="page-title">
-            <p class="eyebrow"><span class="eyebrow-dot"></span> PUBLISHED FACT-CHECKS</p>
-            <h1 id="page-title">Look for a fact-check before you share.</h1>
-            <p class="hero-copy">
-                Search recent fact-check articles for a related claim. A missing
-                match does not mean a claim is true or false.
-            </p>
-        </section>
+        <section class="search-layout" aria-label="Claim search">
+            <section class="hero" aria-labelledby="page-title">
+                <p class="eyebrow"><span class="eyebrow-dot"></span> SIGNAL CHECK</p>
+                <h1 id="page-title">See what’s already been reported.</h1>
+                <p class="hero-copy">
+                    News coverage is context to review, not a verdict. Compare a claim
+                    with recent fact-checks and related reporting.
+                </p>
+                <ol class="workflow" aria-label="How the search works">
+                    <li><span>01</span><p>Paste a claim or headline</p></li>
+                    <li><span>02</span><p>Match recent feed entries</p></li>
+                    <li><span>03</span><p>Review the original sources</p></li>
+                </ol>
+            </section>
 
-        <section class="analyzer-card" aria-label="News analysis form">
-            <form method="post" action="{{ url_for('predict') }}" id="analysis-form">
-                <div class="field-heading">
-                    <label for="news_article">Claim, headline, or article</label>
-                    <span class="field-hint">We compare your text with feed entries locally</span>
-                </div>
-                <textarea
-                    id="news_article"
-                    name="news_article"
-                    rows="9"
-                    maxlength="{{ max_article_length }}"
-                    placeholder="Paste a headline or article here…"
-                    aria-describedby="input-help character-count"
-                    required
-                >{{ article }}</textarea>
-                <div class="input-footer">
-                    <span id="input-help">Your text is not sent to the fact-check sources.</span>
-                    <span id="character-count" aria-live="polite">
-                        0 / {{ "{:,}".format(max_article_length) }}
+            <section class="analyzer-card" aria-label="Search for related coverage">
+                <div class="panel-heading">
+                    <span class="panel-kicker">START A SEARCH</span>
+                    <span class="source-count">
+                        {{ news_source_names|length }} news feeds · {{ source_names|length }} fact-check feed
                     </span>
                 </div>
-                <button type="submit" id="submit-button">
-                    <span>Find related fact-checks</span>
-                    <span aria-hidden="true">→</span>
-                </button>
-                <p class="loading-message" id="loading-message" role="status" hidden>
-                    Checking fact-check feeds…
-                </p>
-            </form>
-
-            {% if error %}
-            <div class="notice notice-error" role="alert">
-                <span class="notice-icon" aria-hidden="true">!</span>
-                <div>
-                    <strong>Couldn’t search these sources</strong>
-                    <p>{{ error }}</p>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if search_result %}
-            <section class="result" aria-live="polite" aria-labelledby="result-title">
-                <h2 id="result-title">Related fact-checks</h2>
-                {% if search_result.matches %}
-                <ul class="fact-check-list">
-                    {% for check in search_result.matches %}
-                    <li class="fact-check-item">
-                        <h3>
-                            <a href="{{ check.url }}" target="_blank" rel="noopener noreferrer">
-                                {{ check.title }}
-                            </a>
-                        </h3>
-                        <p class="fact-check-meta">
-                            {{ check.source }}{% if check.published %} · {{ check.published }}{% endif %}
-                        </p>
-                        {% if check.summary %}
-                        <p class="fact-check-summary">{{ check.summary }}</p>
-                        {% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% elif search_result.checked_sources %}
-                <p class="result-message">No related fact-check found in the available feeds.</p>
-                {% else %}
-                <p class="result-message" role="status">We could not reach any fact-check feeds. Try again later.</p>
-                {% endif %}
-                {% if search_result.failed_sources and search_result.checked_sources %}
-                <p class="source-warning" role="status">
-                    Some sources could not be reached:
-                    {{ search_result.failed_sources|join(", ") }}. Results may be incomplete.
-                </p>
-                {% endif %}
-                <p class="result-caveat">
-                    A related article is evidence to review, not a verdict. No match
-                    does not establish whether the claim is true or false.
-                </p>
+                <form method="post" action="{{ url_for('predict') }}" id="analysis-form">
+                    <div class="field-heading">
+                        <label for="news_article">What would you like to check?</label>
+                        <span class="field-hint">A headline or a few sentences work well</span>
+                    </div>
+                    <textarea
+                        id="news_article"
+                        name="news_article"
+                        rows="7"
+                        maxlength="{{ max_article_length }}"
+                        placeholder="Paste a claim, headline, or article…"
+                        aria-describedby="input-help character-count"
+                        required
+                    >{{ article }}</textarea>
+                    <div class="input-footer">
+                        <span id="input-help">
+                            Your claim is not sent to publishers; matching happens locally against recent feeds.
+                        </span>
+                        <span id="character-count" aria-live="polite">
+                            0 / {{ "{:,}".format(max_article_length) }}
+                        </span>
+                    </div>
+                    <button type="submit" id="submit-button">
+                        <span>Search related coverage</span>
+                        <span class="button-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <p class="loading-message" id="loading-message" role="status" hidden>
+                        Checking recent feeds…
+                    </p>
+                </form>
             </section>
-            {% endif %}
         </section>
+        {% if error %}
+        <div class="notice notice-error" role="alert">
+            <span class="notice-icon" aria-hidden="true">!</span>
+            <div>
+                <strong>Couldn’t search these sources</strong>
+                <p>{{ error }}</p>
+            </div>
+        </div>
+        {% endif %}
 
-        <section class="dataset-card" aria-label="Fact-check source status">
+        {% if search_result or news_result %}
+        <section class="results" aria-live="polite" aria-labelledby="results-title">
+            <header class="results-heading">
+                <div>
+                    <p class="panel-kicker">YOUR SEARCH</p>
+                    <h2 id="results-title">Results to review</h2>
+                </div>
+                <p class="results-note">A related result is a lead to investigate, not proof.</p>
+            </header>
+            <div class="results-grid">
+                {% if search_result %}
+                <section class="result result-factchecks" aria-labelledby="factchecks-title">
+                    <header class="result-heading">
+                        <div>
+                            <p class="eyebrow">VERIFICATION</p>
+                            <h3 id="factchecks-title">Fact-checks</h3>
+                        </div>
+                        <span class="result-count">{{ search_result.matches|length }} found</span>
+                    </header>
+                    {% if search_result.matches %}
+                    <ul class="fact-check-list">
+                        {% for check in search_result.matches %}
+                        <li class="fact-check-item">
+                            <h4>
+                                <a href="{{ check.url }}" target="_blank" rel="noopener noreferrer">
+                                    {{ check.title }}
+                                </a>
+                            </h4>
+                            <p class="fact-check-meta">
+                                {{ check.source }}{% if check.published %} · {{ check.published }}{% endif %}
+                            </p>
+                            {% if check.summary %}
+                            <p class="fact-check-summary">{{ check.summary }}</p>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% elif search_result.checked_sources %}
+                    <p class="empty-state">
+                        <span class="empty-mark" aria-hidden="true">—</span>
+                        No related fact-check found in the configured feed.
+                    </p>
+                    {% else %}
+                    <p class="empty-state" role="status">
+                        <span class="empty-mark" aria-hidden="true">!</span>
+                        Couldn’t reach any fact-check feeds:
+                        {{ search_result.failed_sources|join(", ") }}. Try again later.
+                    </p>
+                    {% endif %}
+                    {% if search_result.failed_sources and search_result.checked_sources %}
+                    <p class="source-warning" role="status">
+                        Some sources could not be reached:
+                        {{ search_result.failed_sources|join(", ") }}. Results may be incomplete.
+                    </p>
+                    {% endif %}
+                </section>
+                {% endif %}
+                {% if news_result %}
+                <section class="result result-news" aria-labelledby="news-result-title">
+                    <header class="result-heading">
+                        <div>
+                            <p class="eyebrow">COVERAGE</p>
+                            <h3 id="news-result-title">Related news</h3>
+                        </div>
+                        <span class="result-count">{{ news_result.articles|length }} found</span>
+                    </header>
+                    {% if not news_result.checked_sources %}
+                    <p class="empty-state" role="status">
+                        <span class="empty-mark" aria-hidden="true">!</span>
+                        Couldn’t reach any configured news feeds:
+                        {{ news_result.failed_sources|join(", ") }}. Try again later.
+                    </p>
+                    {% elif news_result.articles %}
+                    <ul class="fact-check-list">
+                        {% for article in news_result.articles %}
+                        <li class="fact-check-item">
+                            <h4>
+                                <a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">
+                                    {{ article.title }}
+                                </a>
+                            </h4>
+                            <p class="fact-check-meta">
+                                {{ article.source }}{% if article.published %} · {{ article.published }}{% endif %}
+                            </p>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="empty-state">
+                        <span class="empty-mark" aria-hidden="true">—</span>
+                        No related articles in the recent feeds.
+                    </p>
+                    {% endif %}
+                    {% if news_result.failed_sources and news_result.checked_sources %}
+                    <p class="source-warning" role="status">
+                        Some news feeds could not be reached:
+                        {{ news_result.failed_sources|join(", ") }}. Results may be incomplete.
+                    </p>
+                    {% endif %}
+                </section>
+                {% endif %}
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="dataset-card" aria-label="Configured news sources">
             <div class="dataset-icon" aria-hidden="true">◎</div>
             <div>
-                <h2>Configured fact-check feeds</h2>
-                <p>{{ source_names|join(", ") }}. Feeds are checked when you submit text.</p>
+                <h2>Sources checked</h2>
+                <p><strong>Fact-checks:</strong> {{ source_names|join(", ") }}. <strong>News:</strong> {{ news_source_names|join(", ") }}.</p>
             </div>
         </section>
 
         <footer class="page-footer">
-            <span>Only configured feeds are searched.</span>
-            <span>A missing match is not proof that a claim is accurate.</span>
+            <span>Only configured RSS feeds are searched.</span>
+            <span>No match doesn’t establish whether a claim is true or false.</span>
         </footer>
     </main>
 

@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from html import unescape
 import logging
 import re
@@ -13,11 +14,11 @@ MAX_FEED_BYTES = 1_000_000
 MAX_FEED_ITEMS = 100
 MAX_MATCHES = 5
 REQUEST_TIMEOUT = (3.05, 5)
-MIN_MATCH_TERMS = 3
+MIN_MATCH_TERMS = 2
 MIN_MATCH_SCORE = 0.25
 
 
-class FactCheckFeed(NamedTuple):
+class RSSFeed(NamedTuple):
     name: str
     url: str
     host: str
@@ -37,14 +38,60 @@ class FactCheckSearchResult(NamedTuple):
     failed_sources: tuple
 
 
+class NewsArticle(NamedTuple):
+    title: str
+    url: str
+    source: str
+    published: str
+
+
+class NewsSearchResult(NamedTuple):
+    articles: tuple
+    checked_sources: tuple
+    failed_sources: tuple
+
+
 FACT_CHECK_FEEDS = (
-    FactCheckFeed(
+    RSSFeed(
         "Snopes",
         "https://www.snopes.com/fact-check/feed/",
         "www.snopes.com",
     ),
 )
+NEWS_FEEDS = (
+    RSSFeed(
+        "The Guardian",
+        "https://www.theguardian.com/world/rss",
+        "www.theguardian.com",
+    ),
+    RSSFeed(
+        "Al Jazeera",
+        "https://www.aljazeera.com/xml/rss/all.xml",
+        "www.aljazeera.com",
+    ),
+    RSSFeed(
+        "Deutsche Welle",
+        "https://rss.dw.com/xml/rss-en-all",
+        "www.dw.com",
+    ),
+    RSSFeed(
+        "France 24",
+        "https://www.france24.com/en/rss",
+        "www.france24.com",
+    ),
+    RSSFeed(
+        "CNBC",
+        "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+        "www.cnbc.com",
+    ),
+    RSSFeed(
+        "Euronews",
+        "https://www.euronews.com/rss?format=mrss&level=theme&name=news",
+        "www.euronews.com",
+    ),
+)
 SOURCE_NAMES = tuple(feed.name for feed in FACT_CHECK_FEEDS)
+NEWS_SOURCE_NAMES = tuple(feed.name for feed in NEWS_FEEDS)
 
 _STOP_WORDS = frozenset(
     {
@@ -125,7 +172,7 @@ def _download_feed(feed):
                 continue
             size += len(chunk)
             if size > MAX_FEED_BYTES:
-                raise ValueError("Fact-check feed exceeded the size limit.")
+                raise ValueError("RSS feed exceeded the size limit.")
             chunks.append(chunk)
     return b"".join(chunks)
 
@@ -133,11 +180,11 @@ def _download_feed(feed):
 def _parse_feed(feed):
     content = _download_feed(feed)
     if re.search(br"<!\s*(?:doctype|entity)\b", content, re.IGNORECASE):
-        raise ValueError("Fact-check feed contains unsupported XML declarations.")
+        raise ValueError("RSS feed contains unsupported XML declarations.")
 
     root = ET.fromstring(content)
     if _local_name(root.tag) not in {"rss", "feed", "rdf"}:
-        raise ValueError("Fact-check feed has an unsupported XML format.")
+        raise ValueError("RSS feed has an unsupported XML format.")
 
     entries = []
     for element in root.iter():
@@ -207,3 +254,55 @@ def find_related_fact_checks(article):
         tuple(checked_sources),
         tuple(failed_sources),
     )
+
+
+def find_related_news(article):
+    query_terms = _terms(article)
+    checked_sources = []
+    failed_sources = []
+    scored_matches = []
+
+    with ThreadPoolExecutor(max_workers=min(4, len(NEWS_FEEDS))) as executor:
+        feed_entries = executor.map(_parse_news_feed, NEWS_FEEDS)
+        for feed, entries in zip(NEWS_FEEDS, feed_entries):
+            if entries is None:
+                failed_sources.append(feed.name)
+                continue
+
+            checked_sources.append(feed.name)
+            for entry in entries:
+                score = _match_score(query_terms, entry)
+                if score >= MIN_MATCH_SCORE:
+                    scored_matches.append((score, entry))
+
+    scored_matches.sort(key=lambda result: (-result[0], result[1].title.casefold()))
+    articles = []
+    seen_urls = set()
+    for _, entry in scored_matches:
+        if entry.url in seen_urls:
+            continue
+        articles.append(
+            NewsArticle(
+                entry.title,
+                entry.url,
+                entry.source,
+                entry.published,
+            )
+        )
+        seen_urls.add(entry.url)
+        if len(articles) == MAX_MATCHES:
+            break
+
+    return NewsSearchResult(
+        tuple(articles),
+        tuple(checked_sources),
+        tuple(failed_sources),
+    )
+
+
+def _parse_news_feed(feed):
+    try:
+        return _parse_feed(feed)
+    except (requests.RequestException, ET.ParseError, ValueError) as error:
+        logger.warning("News feed %s failed: %s", feed.name, error)
+        return None
