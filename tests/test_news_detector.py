@@ -26,6 +26,8 @@ class NewsDetectorTests(unittest.TestCase):
         self.assertIn(b"France 24", response.data)
         self.assertIn(b"CNBC", response.data)
         self.assertIn(b"Euronews", response.data)
+        self.assertIn(b"Google News", response.data)
+        self.assertIn(b"sent to Google News for search", response.data)
         self.assertIn(b"News coverage is context", response.data)
 
     def test_empty_submission_shows_validation_message(self):
@@ -73,7 +75,7 @@ class NewsDetectorTests(unittest.TestCase):
         self.assertIn(b"Related news", response.data)
         self.assertIn(b"Council approves school plan", response.data)
         self.assertIn(b"Example News", response.data)
-        self.assertIn(b"Your claim is not sent to publishers", response.data)
+        self.assertIn(b"sent to Google News for search", response.data)
         self.assertNotIn(b"Model screening", response.data)
 
     def test_no_match_is_not_presented_as_a_truth_verdict(self):

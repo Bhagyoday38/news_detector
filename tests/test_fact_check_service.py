@@ -1,6 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 from unittest.mock import patch
 
 import requests
@@ -95,10 +96,72 @@ class FactCheckServiceTests(unittest.TestCase):
         self.assertEqual(result.articles[0].title, related.title)
         self.assertEqual(
             result.checked_sources,
-            tuple(feed.name for feed in fact_check_service.NEWS_FEEDS),
+            self._expected_news_sources(),
         )
         self.assertEqual(result.failed_sources, ())
-        self.assertEqual(parse_feed.call_count, len(fact_check_service.NEWS_FEEDS))
+        self.assertEqual(
+            parse_feed.call_count,
+            len(fact_check_service.NEWS_FEEDS) + 1,
+        )
+
+    def test_searches_google_news_rss_using_the_submitted_claim(self):
+        claim = "Council approves school plan & budget " + "extra " * 100
+        google_article = fact_check_service.FactCheck(
+            "Council approves school plan",
+            "https://news.google.com/rss/articles/example",
+            "Google News",
+            "",
+            "",
+        )
+        feeds = []
+
+        def feed_entries(feed):
+            feeds.append(feed)
+            return [google_article] if feed.name == "Google News" else []
+
+        with patch(
+            "fact_check_service._parse_feed",
+            side_effect=feed_entries,
+        ):
+            result = fact_check_service.find_related_news(claim)
+
+        google_feed = next(feed for feed in feeds if feed.name == "Google News")
+        self.assertEqual(
+            parse_qs(urlsplit(google_feed.url).query)["q"],
+            [claim[: fact_check_service.MAX_GOOGLE_NEWS_QUERY_LENGTH]],
+        )
+        self.assertEqual(urlsplit(google_feed.url).hostname, "news.google.com")
+        self.assertEqual(result.checked_sources, self._expected_news_sources())
+        self.assertEqual(result.articles[0].source, "Google News")
+
+    def test_parses_google_news_links_but_rejects_external_item_links(self):
+        google_feed = fact_check_service.RSSFeed(
+            "Google News",
+            "https://news.google.com/rss/search?q=school",
+            "news.google.com",
+        )
+        content = b"""<rss><channel>
+        <item>
+          <title>School plan approved by council</title>
+          <link>https://news.google.com/rss/articles/example</link>
+        </item>
+        <item>
+          <title>Fake school plan report</title>
+          <link>https://example.com/fake</link>
+        </item>
+        </channel></rss>"""
+
+        with patch(
+            "fact_check_service.requests.get",
+            return_value=FakeResponse(content),
+        ):
+            entries = fact_check_service._parse_feed(google_feed)
+
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(
+            entries[0].url,
+            "https://news.google.com/rss/articles/example",
+        )
 
     def test_reports_news_feed_failures_separately_from_no_matches(self):
         with patch(
@@ -111,7 +174,13 @@ class FactCheckServiceTests(unittest.TestCase):
         self.assertEqual(result.checked_sources, ())
         self.assertEqual(
             result.failed_sources,
-            tuple(feed.name for feed in fact_check_service.NEWS_FEEDS),
+            self._expected_news_sources(),
+        )
+
+    @staticmethod
+    def _expected_news_sources():
+        return tuple(feed.name for feed in fact_check_service.NEWS_FEEDS) + (
+            "Google News",
         )
 
     def test_ignores_feed_links_outside_the_verified_source_domain(self):

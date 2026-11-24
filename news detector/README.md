@@ -14,9 +14,12 @@ and [Al Jazeera RSS](https://www.aljazeera.com/xml/rss/all.xml),
 [France 24](https://www.france24.com/en/rss),
 [CNBC](https://www.cnbc.com/id/100003114/device/rss/rss.html), and
 [Euronews](https://www.euronews.com/rss?format=mrss&level=theme&name=news).
-The app compares their headlines and summaries locally; the submitted claim is
-not sent to publishers. Results show headlines, publisher names, dates, and
-links rather than reproducing feed descriptions.
+It also searches the query-specific
+[Google News RSS feed](https://news.google.com/rss/search?q=your+search+terms&hl=en-US&gl=US&ceid=US:en).
+The first 500 characters of the submitted claim are sent to Google News to
+retrieve search results. The app compares results against the query locally and
+other publishers' RSS feed content stays local. Results show headlines,
+publisher names, dates, and links rather than reproducing feed descriptions.
 
 Fact-check lookup separately uses the
 [Snopes fact-check RSS feed](https://www.snopes.com/fact-check/feed/).

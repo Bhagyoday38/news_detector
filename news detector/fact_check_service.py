@@ -3,7 +3,7 @@ from html import unescape
 import logging
 import re
 from typing import NamedTuple
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urlencode, urljoin, urlsplit
 import xml.etree.ElementTree as ET
 
 import requests
@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 MAX_FEED_BYTES = 1_000_000
 MAX_FEED_ITEMS = 100
 MAX_MATCHES = 5
+MAX_GOOGLE_NEWS_QUERY_LENGTH = 500
 REQUEST_TIMEOUT = (3.05, 5)
 MIN_MATCH_TERMS = 2
 MIN_MATCH_SCORE = 0.25
@@ -91,7 +92,7 @@ NEWS_FEEDS = (
     ),
 )
 SOURCE_NAMES = tuple(feed.name for feed in FACT_CHECK_FEEDS)
-NEWS_SOURCE_NAMES = tuple(feed.name for feed in NEWS_FEEDS)
+NEWS_SOURCE_NAMES = tuple(feed.name for feed in NEWS_FEEDS) + ("Google News",)
 
 _STOP_WORDS = frozenset(
     {
@@ -261,10 +262,11 @@ def find_related_news(article):
     checked_sources = []
     failed_sources = []
     scored_matches = []
+    feeds = NEWS_FEEDS + (_google_news_feed(article),)
 
-    with ThreadPoolExecutor(max_workers=min(4, len(NEWS_FEEDS))) as executor:
-        feed_entries = executor.map(_parse_news_feed, NEWS_FEEDS)
-        for feed, entries in zip(NEWS_FEEDS, feed_entries):
+    with ThreadPoolExecutor(max_workers=min(4, len(feeds))) as executor:
+        feed_entries = executor.map(_parse_news_feed, feeds)
+        for feed, entries in zip(feeds, feed_entries):
             if entries is None:
                 failed_sources.append(feed.name)
                 continue
@@ -297,6 +299,22 @@ def find_related_news(article):
         tuple(articles),
         tuple(checked_sources),
         tuple(failed_sources),
+    )
+
+
+def _google_news_feed(article):
+    params = urlencode(
+        {
+            "q": article[:MAX_GOOGLE_NEWS_QUERY_LENGTH],
+            "hl": "en-US",
+            "gl": "US",
+            "ceid": "US:en",
+        }
+    )
+    return RSSFeed(
+        "Google News",
+        f"https://news.google.com/rss/search?{params}",
+        "news.google.com",
     )
 
 
