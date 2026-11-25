@@ -27,8 +27,8 @@ class NewsDetectorTests(unittest.TestCase):
         self.assertIn(b"CNBC", response.data)
         self.assertIn(b"Euronews", response.data)
         self.assertIn(b"Google News", response.data)
-        self.assertIn(b"sent to Google News for search", response.data)
-        self.assertIn(b"News coverage is context", response.data)
+        self.assertIn(b"Verify the story", response.data)
+        self.assertIn(b"Matching is based on the configured feed data", response.data)
 
     def test_empty_submission_shows_validation_message(self):
         response = news_app.app.test_client().post(
@@ -75,7 +75,7 @@ class NewsDetectorTests(unittest.TestCase):
         self.assertIn(b"Related news", response.data)
         self.assertIn(b"Council approves school plan", response.data)
         self.assertIn(b"Example News", response.data)
-        self.assertIn(b"sent to Google News for search", response.data)
+        self.assertIn(b"Matching is based on the configured feed data", response.data)
         self.assertNotIn(b"Model screening", response.data)
 
     def test_no_match_is_not_presented_as_a_truth_verdict(self):
@@ -92,7 +92,7 @@ class NewsDetectorTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"No related fact-check found", response.data)
-        self.assertIn(b"not a verdict", response.data)
+        self.assertIn(b"not proof", response.data)
 
     def test_news_feed_failures_are_reported_as_unavailable(self):
         fact_checks = FactCheckSearchResult((), ("Snopes",), ())

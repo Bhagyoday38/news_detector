@@ -3,51 +3,57 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#e9efec">
-    <title>Signal Check — Related news and fact-checks</title>
+    <meta name="theme-color" content="#091310">
+    <title>NewsDetector — Verify the story</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     <main class="page-shell">
-        <header class="topbar">
-            <a class="brand" href="{{ url_for('home') }}" aria-label="Signal Check home">
-                <span class="brand-mark" aria-hidden="true">S</span>
-                <span>Signal<span class="brand-light">Check</span></span>
+        <nav class="topbar" aria-label="Primary navigation">
+            <a class="brand" href="{{ url_for('home') }}" aria-label="NewsDetector home">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" role="img">
+                        <path d="M12 3 4.5 6.4v5.1c0 4.7 3.2 8.9 7.5 9.9 4.3-1 7.5-5.2 7.5-9.9V6.4L12 3Z"/>
+                        <path d="m8.7 12 2.2 2.2 4.7-5"/>
+                    </svg>
+                </span>
+                <span>News<span>Detector</span></span>
             </a>
-            <span class="topbar-note"><span class="status-dot"></span> Recent sources, reviewed locally</span>
-        </header>
+            <div class="topbar-actions">
+                <span class="live-status"><span class="status-pulse"></span> Feeds live</span>
+                <a class="topbar-link" href="#sources">Sources</a>
+            </div>
+        </nav>
 
-        <section class="search-layout" aria-label="Claim search">
-            <section class="hero" aria-labelledby="page-title">
-                <p class="eyebrow"><span class="eyebrow-dot"></span> SIGNAL CHECK</p>
-                <h1 id="page-title">See what’s already been reported.</h1>
-                <p class="hero-copy">
-                    News coverage is context to review, not a verdict. Compare a claim
-                    with recent fact-checks and related reporting.
-                </p>
-                <ol class="workflow" aria-label="How the search works">
-                    <li><span>01</span><p>Paste a claim or headline</p></li>
-                    <li><span>02</span><p>Match recent feed entries</p></li>
-                    <li><span>03</span><p>Review the original sources</p></li>
-                </ol>
+        <section class="search-layout" aria-labelledby="page-title">
+            <section class="hero">
+                <div class="eyebrow"><span>VERIFICATION LAB</span><b>01</b></div>
+                <h1 id="page-title">Verify the story.<br><em>Not the noise.</em></h1>
+                <p class="hero-copy">Enter a claim and scan recent reporting and fact-check feeds side by side.</p>
+                <div class="trust-row" aria-label="Search benefits">
+                    <span><b>RSS</b> Based</span>
+                    <span><b>Live</b> Sources</span>
+                    <span><b>Local</b> Matching</span>
+                </div>
             </section>
 
             <section class="analyzer-card" aria-label="Search for related coverage">
                 <div class="panel-heading">
-                    <span class="panel-kicker">START A SEARCH</span>
-                    <span class="source-count">
-                        {{ news_source_names|length }} news feeds · {{ source_names|length }} fact-check feed
-                    </span>
+                    <div>
+                        <span class="panel-index">01</span>
+                        <span class="panel-kicker">NEW ANALYSIS</span>
+                    </div>
+                    <span class="source-count">{{ news_source_names|length + source_names|length }} sources</span>
                 </div>
                 <form method="post" action="{{ url_for('predict') }}" id="analysis-form">
                     <div class="field-heading">
                         <label for="news_article">What would you like to check?</label>
-                        <span class="field-hint">A headline or a few sentences work well</span>
+                        <span class="field-hint">Headline or claim</span>
                     </div>
                     <textarea
                         id="news_article"
                         name="news_article"
-                        rows="7"
+                        rows="6"
                         maxlength="{{ max_article_length }}"
                         placeholder="Paste a claim, headline, or article…"
                         aria-describedby="input-help character-count"
@@ -55,18 +61,20 @@
                     >{{ article }}</textarea>
                     <div class="input-footer">
                         <span id="input-help">
-                            The first 500 characters are sent to Google News for search; matching against other feeds happens locally.
+                            Matching is based on the configured feed data.
                         </span>
                         <span id="character-count" aria-live="polite">
-                            0 / {{ "{:,}".format(max_article_length) }}
+                            0 chars
                         </span>
                     </div>
                     <button type="submit" id="submit-button">
                         <span>Search related coverage</span>
-                        <span class="button-arrow" aria-hidden="true">→</span>
+                        <svg viewBox="0 0 20 20" aria-hidden="true">
+                            <path d="M4 10h11M11 6l4 4-4 4"/>
+                        </svg>
                     </button>
                     <p class="loading-message" id="loading-message" role="status" hidden>
-                        Checking recent feeds…
+                        <span></span> Checking recent feeds…
                     </p>
                 </form>
             </section>
@@ -86,7 +94,7 @@
             <header class="results-heading">
                 <div>
                     <p class="panel-kicker">YOUR SEARCH</p>
-                    <h2 id="results-title">Results to review</h2>
+                    <h2 id="results-title">Evidence<span> scan</span></h2>
                 </div>
                 <p class="results-note">A related result is a lead to investigate, not proof.</p>
             </header>
@@ -186,7 +194,7 @@
         </section>
         {% endif %}
 
-        <section class="dataset-card" aria-label="Configured news sources">
+        <section class="dataset-card" id="sources" aria-label="Configured news sources">
             <div class="dataset-icon" aria-hidden="true">◎</div>
             <div>
                 <h2>Sources checked</h2>
@@ -210,7 +218,7 @@
 
         function updateCharacterCount() {
             characterCount.textContent =
-                `${articleInput.value.length.toLocaleString()} / ${maxArticleLength.toLocaleString()}`;
+                `${articleInput.value.length.toLocaleString()} chars`;
         }
 
         articleInput.addEventListener("input", updateCharacterCount);
