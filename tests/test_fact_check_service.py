@@ -66,6 +66,22 @@ class FactCheckServiceTests(unittest.TestCase):
 
         self.assertEqual(len(result.matches), 1)
 
+    def test_long_claim_does_not_get_full_score_from_two_shared_terms(self):
+        fact_check = fact_check_service.FactCheck(
+            "Council approves",
+            "https://www.snopes.com/fact-check/example/",
+            "Snopes",
+            "",
+            "",
+        )
+        query_terms = {"council", "approves"} | {
+            f"claim{index}" for index in range(18)
+        }
+
+        score = fact_check_service._match_score(query_terms, fact_check)
+
+        self.assertLess(score, fact_check_service.MIN_MATCH_SCORE)
+
     def test_searches_configured_news_feeds_locally_without_api_key(self):
         related = fact_check_service.FactCheck(
             "Council approves school plan",

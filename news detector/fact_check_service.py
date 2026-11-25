@@ -214,7 +214,7 @@ def _match_score(query_terms, fact_check):
         overlap = len(query_terms & candidate_terms)
         if overlap < MIN_MATCH_TERMS:
             continue
-        score = overlap / min(len(query_terms), len(candidate_terms))
+        score = 2 * overlap / (len(query_terms) + len(candidate_terms))
         best_score = max(best_score, score)
     return best_score
 
